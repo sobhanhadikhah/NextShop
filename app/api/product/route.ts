@@ -2,21 +2,17 @@ import { Product } from "@prisma/client";
 import { NextApiRequest, NextApiResponse } from "next";
 import { NextRequest, NextResponse } from "next/server";
 
+import { getQueryParam, setOff } from "@/app/func/server";
 import { prisma } from "@/app/lib/prisma";
-
-function setOff(isOff:boolean, offPercent:number |null, price:number):number {
-  if (isOff && offPercent) {
-    const discountedPrice = price - (price * (offPercent / 100));
-    return discountedPrice;
-  }
-  return price;
-}
+import { Params } from "@/app/types/api/product";
 
 export async function GET(req:NextApiRequest, res:NextApiResponse<Product>) {
   try {
     await prisma.$connect();
-    const product = await prisma.product.findMany();
-    return Response.json({ products: product }, { status: 200 });
+    const limit = await getQueryParam(req.url, "limit");
+    const take = parseInt(limit, 10);
+    const product = await prisma.product.findMany({ take });
+    return Response.json({ products: product, limit: limit ?? 10 }, { status: 200 });
   } catch (error) {
     return Response.json({ error }, { status: 500 });
   } finally {
@@ -28,17 +24,19 @@ export async function POST(req:NextRequest, res:NextApiResponse) {
     await prisma.$connect();
     const data:Product = await req.json();
 
-    const result = await prisma.product.create({
+    await prisma.product.create({
       data: {
         description: data.description,
         title: data.title,
         price: setOff(data.isOff, data.offPercent, data.price),
         isOff: data.isOff,
         offPercent: data.isOff ? data.offPercent : null,
-        realPrice: data.price
+        realPrice: data.price,
+        total: data.total,
+        images: data.images
       }
     });
-    return NextResponse.json({ result, status: "0k" }, { status: 200 });
+    return NextResponse.json({ data, status: "200" }, { status: 200 });
   } catch (error) {
     return NextResponse.json({ error }, { status: 500 });
   } finally {
@@ -54,6 +52,6 @@ export async function DELETE(req:NextRequest, res:NextApiResponse) {
   } catch (error) {
     throw new Error();
   } finally {
-    prisma.$disconnect();
+    await prisma.$disconnect();
   }
 }

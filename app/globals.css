@@ -3,7 +3,9 @@
 @tailwind utilities;
 
 
-body {
+body  {
     direction: rtl;
+    color: black;
     text-align: right;
 }
+
